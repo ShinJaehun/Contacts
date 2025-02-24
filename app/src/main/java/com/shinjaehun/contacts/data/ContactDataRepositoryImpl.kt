@@ -44,53 +44,71 @@ class ContactDataRepositoryImpl(
     }
 
     override suspend fun insertContact(contact: Contact) {
-        val beforeUpdateContact = contact.id?.let { dao.getContactById(it) }
-        val beforeUpdateContactBytes = beforeUpdateContact?.imagePath?.let {
-            Log.i(TAG, "beforeUpdateContact path: $it")
-            imageStorage.getImage(it)
-        }
-
-        // Contact에 imagePath를 넣어두면 db 호출을 한번 덜 할 수 있는데
-        // 문제가 photoBytes와 다른 이미지를 가리키는 경우가 존재할 수 있음...
-//        val bytes = contact.imagePath?.let {
-//            Log.i(TAG, "Contact image path: $it")
+        Log.i(TAG, "new contact: $contact")
+//        val beforeUpdateContact = contact.id?.let { dao.getContactById(it) }
+//        val beforeUpdateContactBytes = beforeUpdateContact?.imagePath?.let {
+//            Log.i(TAG, "beforeUpdateContact path: $it")
 //            imageStorage.getImage(it)
 //        }
-
-        // 멍청하게도... 지금까지 계속 photoBytes를 이미지 사이즈로만 이해하고 있었음...
-        // 이거 자체가 byteArray인 이미지 자체임
-        val updateContactBytes = contact.photoBytes
-        // viewModel에서 OnPhotoPicked 이벤트로 변경된 이미지의 바이트 어레이가 저장되어 있음...
-        val isSameImage = beforeUpdateContactBytes != null && updateContactBytes != null &&
-                beforeUpdateContactBytes.contentEquals(updateContactBytes)
-        Log.i(TAG, "isSameImage: $isSameImage")
-
-        val imagePath: String? = if (isSameImage) {
-            beforeUpdateContact?.imagePath
-        } else {
-            // 이미지가 바뀌었으면 바뀌기 전 이미지는 삭제
-            beforeUpdateContact?.imagePath?.let { imageStorage.deleteImage(it) }
-            imageStorage.saveImage(updateContactBytes!!)
-        }
-
+//
+//        val updateContactBytes = contact.photoBytes
+//        val isSameImage = beforeUpdateContactBytes != null && updateContactBytes != null &&
+//                beforeUpdateContactBytes.contentEquals(updateContactBytes)
+//        Log.i(TAG, "isSameImage: $isSameImage")
+//
 //        val imagePath: String? = if (isSameImage) {
-//            contact.imagePath
+//            beforeUpdateContact?.imagePath
 //        } else {
-//            contact.imagePath?.let { imageStorage.deleteImage(it) }
+//            beforeUpdateContact?.imagePath?.let { imageStorage.deleteImage(it) }
 //            imageStorage.saveImage(updateContactBytes!!)
 //        }
+//
+//        Log.i(TAG, "new Contact image path: $imagePath")
+//
+//        dao.insertContactEntity(
+//            contact.toContactEntity(imagePath)
+//        )
 
-        Log.i(TAG, "new Contact image path: $imagePath")
-
-        // 이렇게 하면 안 되는거지...
-//        Log.i(TAG, "contact path: ${contact.imagePath}")
-//        Log.i(TAG, "in db path? ${contact.id?.let { dao.getContactById(it).imagePath }}")
-//        val imagePath = contact.photoBytes?.let {
-//            imageStorage.saveImage(it)
-//        }
-        dao.insertContactEntity(
-            contact.toContactEntity(imagePath)
-        )
+        val imagePath: String?
+        if (contact.id == null) {
+            if (contact.photoBytes != null) {
+                imagePath = contact.photoBytes.let {
+                    imageStorage.saveImage(it)
+                }
+            } else {
+                imagePath = null
+            }
+        } else {
+            val beforeUpdateContact = contact.id.let { dao.getContactById(it) }
+            //
+            val beforeUpdateContactBytes = beforeUpdateContact.imagePath?.let {
+                imageStorage.getImage(it)
+            }
+            val updateContactBytes = contact.photoBytes
+            val isSameImage =
+                beforeUpdateContactBytes != null &&
+                        updateContactBytes != null &&
+                        beforeUpdateContactBytes.contentEquals(updateContactBytes)
+            if (isSameImage) {
+                imagePath = beforeUpdateContact.imagePath
+            } else {
+                beforeUpdateContact.imagePath?.let {
+                    imageStorage.deleteImage(it)
+                }
+                imagePath = contact.photoBytes?.let {
+                    imageStorage.saveImage(it)
+                }
+            }
+            //
+//            beforeUpdateContact.imagePath?.let {
+//                imageStorage.deleteImage(it)
+//            }
+//            imagePath = contact.photoBytes?.let {
+//                imageStorage.saveImage(it)
+//            }
+        }
+        Log.i(TAG, "new imagePath: $imagePath")
+        dao.insertContactEntity(contact.toContactEntity(imagePath))
     }
 
     override suspend fun deleteContact(id: Long) {
