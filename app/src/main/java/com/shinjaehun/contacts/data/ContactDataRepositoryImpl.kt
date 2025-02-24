@@ -72,10 +72,12 @@ class ContactDataRepositoryImpl(
         val imagePath: String?
         if (contact.id == null) {
             if (contact.photoBytes != null) {
+                Log.i(TAG, "new image!")
                 imagePath = contact.photoBytes.let {
                     imageStorage.saveImage(it)
                 }
             } else {
+                Log.i(TAG, "no image!")
                 imagePath = null
             }
         } else {
@@ -90,8 +92,10 @@ class ContactDataRepositoryImpl(
                         updateContactBytes != null &&
                         beforeUpdateContactBytes.contentEquals(updateContactBytes)
             if (isSameImage) {
+                Log.i(TAG, "same image!")
                 imagePath = beforeUpdateContact.imagePath
             } else {
+                Log.i(TAG, "different image!")
                 beforeUpdateContact.imagePath?.let {
                     imageStorage.deleteImage(it)
                 }
